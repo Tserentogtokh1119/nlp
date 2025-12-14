@@ -1,4 +1,4 @@
-import os  # ✅ NEW
+import os 
 import re
 import argparse
 from urllib.parse import urlparse, parse_qs
@@ -6,13 +6,13 @@ from urllib.parse import urlparse, parse_qs
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-from youtube_transcript_api import YouTubeTranscriptApi  # fetch(video_id, languages=[...])
-from sentence_transformers import SentenceTransformer     # embeddings
-from keybert import KeyBERT                               # keywords (embedding-based)
-import yake                                               # keywords (stat-based)
+from youtube_transcript_api import YouTubeTranscriptApi  
+from sentence_transformers import SentenceTransformer 
+from keybert import KeyBERT  
+import yake 
 
 
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"  # ✅ NEW
+MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
 def video_id_from_url(url: str) -> str:
@@ -56,7 +56,7 @@ def split_sentences(text: str):
     text = re.sub(r"\s+", " ", text).strip()
     if not text:
         return []
-    # энгийн split (MN/EN аль алинд нь боломжийн)
+    # engiin split hiih uildel
     sents = re.split(r"(?<=[\.\!\?\u2026])\s+", text)
     return [s.strip() for s in sents if len(s.strip()) >= 20]
 
@@ -88,7 +88,6 @@ def build_outline(chunks, embedder, kw_model, threshold_percentile=25):
 
     thr = np.percentile(sims, threshold_percentile)
 
-    # boundary: similarity бага болсон цэг
     boundaries = [0]
     for i, s in enumerate(sims):
         if s < thr:
@@ -101,7 +100,6 @@ def build_outline(chunks, embedder, kw_model, threshold_percentile=25):
         title = extract_keywords_keybert(sec_text, kw_model, top_n=3)[0] if sec_text.strip() else "Section"
         sections.append({"start": chunks[a]["start"], "title": title, "text": sec_text})
 
-    # давхардсан title-уудыг жаахан цэвэрлэх
     for i in range(1, len(sections)):
         if sections[i]["title"] == sections[i - 1]["title"]:
             sections[i]["title"] = sections[i]["title"] + " (cont.)"
@@ -137,7 +135,6 @@ def main():
     ap.add_argument("--window", type=int, default=60, help="chunk window seconds")
     ap.add_argument("--summary_k", type=int, default=6)
 
-    # ✅ NEW: model хадгалах/кэш
     ap.add_argument("--cache_dir", default="hf_cache", help="HuggingFace cache folder")
     ap.add_argument("--model_dir", default="saved_models/paraphrase-multi", help="Saved model folder (local)")
     ap.add_argument("--offline", action="store_true", help="Offline mode (internet ашиглахгүй)")
@@ -150,21 +147,17 @@ def main():
     snips = fetch_transcript(vid, languages=langs)
     full_text = " ".join([s["text"] for s in snips])
 
-    # ✅ NEW: cache_dir, model_dir бэлтгэх
     cache_dir = os.path.abspath(args.cache_dir)
     model_dir = os.path.abspath(args.model_dir)
     os.makedirs(cache_dir, exist_ok=True)
     os.makedirs(model_dir, exist_ok=True)
 
-    # offline горим
     if args.offline:
         os.environ["HF_HUB_OFFLINE"] = "1"
 
-    # ✅ NEW: хэрэв өмнө нь save() хийсэн model байгаа бол шууд локалаас уншина
     if os.path.exists(os.path.join(model_dir, "modules.json")):
         embedder = SentenceTransformer(model_dir)
     else:
-        # эхний удаа: татаж аваад cache_dir-д хадгална + model_dir руу save() хийнэ
         embedder = SentenceTransformer(MODEL_NAME, cache_folder=cache_dir)
         embedder.save(model_dir)
 
